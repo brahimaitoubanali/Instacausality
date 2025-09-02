@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InstaCausality - Instagram Native Integration</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #fafafa;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .instagram-gradient {
+            background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%);
+        }
+        
+        .instagram-header {
+            background: linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%);
+        }
+        
+        .screen {
+            min-height: 100vh;
+            background: #fafafa;
+            padding-bottom: 80px;
+        }
+        
+        .notification-badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 8px;
+            height: 8px;
+            background: #ff3040;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        
+        .post-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .post-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .success-tag {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .failure-tag {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .plan-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .plan-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        }
+        
+        .plan-card.featured {
+            border: 2px solid #e1306c;
+            transform: scale(1.05);
+        }
+        
+        .instagram-button {
+            background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .instagram-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(225, 48, 108, 0.3);
+        }
+        
+        .metric-positive { color: #00c851; }
+        .metric-negative { color: #ff4444; }
+        .metric-neutral { color: #6c757d; }
+        
+        .slide-in {
+            animation: slideInUp 0.5s ease-out;
+        }
+        
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .insight-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-left: 4px solid #e1306c;
+        }
+    </style>
+</head>
+<body>
+    <!-- Instagram Top Navigation -->
+    <div class="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-50">
+        <div class="flex items-center justify-between max-w-md mx-auto">
+            <div class="flex items-center space-x-4">
+                <i class="fas fa-camera text-2xl text-gray-800"></i>
+                <h1 class="text-xl font-bold text-gray-800">Instagram</h1>
+            </div>
+            <div class="flex items-center space-x-6">
+                <i class="fas fa-heart text-xl text-gray-600"></i>
+                <i class="fas fa-paper-plane text-xl text-gray-600"></i>
+                <div class="relative cursor-pointer" onclick="showScreen('intro')">
+                    <i class="fas fa-chart-line text-xl text-gray-600"></i>
+                    <div class="notification-badge" id="insightBadge"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instagram Bottom Navigation -->
+    <div class="bg-white border-t border-gray-200 px-4 py-2 fixed bottom-0 left-0 right-0 z-50">
+        <div class="flex items-center justify-around max-w-md mx-auto">
+            <button onclick="showScreen('feed')" class="p-2" id="homeBtn">
+                <i class="fas fa-home text-2xl text-gray-800"></i>
+            </button>
+            <button class="p-2">
+                <i class="fas fa-search text-2xl text-gray-600"></i>
+            </button>
+            <button class="p-2">
+                <i class="fas fa-plus-square text-2xl text-gray-600"></i>
+            </button>
+            <button class="p-2">
+                <i class="fas fa-play text-2xl text-gray-600"></i>
+            </button>
+            <button class="p-2">
+                <div class="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
+            </button>
+        </div>
+    </div>
+
+    <!-- Instagram Feed Screen (Default Launch) -->
+    <div id="feed" class="screen">
+        <div class="px-6 py-6 max-w-md mx-auto">
+            <!-- Stories Section -->
+            <div class="mb-6">
+                <div class="flex space-x-4 overflow-x-auto pb-2">
+                    <div class="flex-shrink-0 text-center">
+                        <div class="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full p-0.5">
+                            <div class="w-full h-full bg-white rounded-full flex items-center justify-center">
+                                <i class="fas fa-plus text-gray-400"></i>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-600 mt-1">Your story</p>
+                    </div>
+                    <div class="flex-shrink-0 text-center">
+                        <div class="w-16 h-16 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full p-0.5">
+                            <div class="w-full h-full bg-gray-200 rounded-full"></div>
+                        </div>
+                        <p class="text-xs text-gray-600 mt-1">sarah_j</p>
+                    </div>
+                    <div class="flex-shrink-0 text-center">
+                        <div class="w-16 h-16 bg-gradient-to-r from-green-400 to-blue-500 rounded-full p-0.5">
+                            <div class="w-full h-full bg-gray-200 rounded-full"></div>
+                        </div>
+                        <p class="text-xs text-gray-600 mt-1">mike_tech</p>
+                    </div>
+                    <div class="flex-shrink-0 text-center">
+                        <div class="w-16 h-16 bg-gradient-to-r from-pink-400 to-red-500 rounded-full p-0.5">
+                            <div class="w-full h-full bg-gray-200 rounded-full"></div>
+                        </div>
+                        <p class="text-xs text-gray-600 mt-1">anna_fit</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feed Posts -->
+            <div class="space-y-6">
+                <!-- Post 1 -->
+                <div class="post-card">
+                    <div class="flex items-center justify-between p-4 pb-3">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
+                            <div>
+                                <p class="font-semibold text-sm text-gray-900">sarah_johnson</p>
+                                <p class="text-xs text-gray-500">New York, NY</p>
+                            </div>
+                        </div>
+                        <i class="fas fa-ellipsis-h text-gray-400"></i>
+                    </div>
+                    <div class="w-full h-80 bg-gradient-to-br from-pink-200 to-purple-300 flex items-center justify-center">
+                        <i class="fas fa-image text-4xl text-white/70"></i>
+                    </div>
+                    <div class="p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center space-x-4">
+                                <i class="far fa-heart text-xl text-gray-700"></i>
+                                <i class="far fa-comment text-xl text-gray-700"></i>
+                                <i class="far fa-paper-plane text-xl text-gray-700"></i>
+                            </div>
+                            <i class="far fa-bookmark text-xl text-gray-700"></i>
+                        </div>
+                        <p class="font-semibold text-sm text-gray-900 mb-1">1,247 likes</p>
+                        <p class="text-sm text-gray-900">
+                            <span class="font-semibold">sarah_johnson</span> 
+                            <span class="text-gray-700">Loving this new summer collection! What's your favorite piece? 🌸 #fashion #summer</span>
+                        </p>
+                        <p class="text-xs text-gray-500 mt-2">2 hours ago</p>
+                    </div>
+                </div>
+
+                <!-- Post 2 -->
+                <div class="post-card">
+                    <div class="flex items-center justify-between p-4 pb-3">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full"></div>
+                            <div>
+                                <p class="font-semibold text-sm text-gray-900">mike_tech_reviews</p>
+                                <p class="text-xs text-gray-500">San Francisco, CA</p>
+                            </div>
+                        </div>
+                        <i class="fas fa-ellipsis-h text-gray-400"></i>
+                    </div>
+                    <div class="w-full h-80 bg-gradient-to-br from-blue-200 to-cyan-300 flex items-center justify-center">
+                        <i class="fas fa-play text-4xl text-white/70"></i>
+                    </div>
+                    <div class="p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center space-x-4">
+                                <i class="fas fa-heart text-xl text-red-500"></i>
+                                <i class="far fa-comment text-xl text-gray-700"></i>
+                                <i class="far fa-paper-plane text-xl text-gray-700"></i>
+                            </div>
+                            <i class="far fa-bookmark text-xl text-gray-700"></i>
+                        </div>
+                        <p class="font-semibold text-sm text-gray-900 mb-1">892 likes</p>
+                        <p class="text-sm text-gray-900">
+                            <span class="font-semibold">mike_tech_reviews</span> 
+                            <span class="text-gray-700">Just unboxed the latest smartphone! Full review coming tomorrow 📱 #tech #review</span>
+                        </p>
+                        <p class="text-xs text-gray-500 mt-2">5 hours ago</p>
+                    </div>
+                </div>
+
+                <!-- Post 3 -->
+                <div class="post-card">
+                    <div class="flex items-center justify-between p-4 pb-3">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-gradient-to-r from-green-500 to-blue-500 rounded-full"></div>
+                            <div>
+                                <p class="font-semibold text-sm text-gray-900">anna_fitness</p>
+                                <p class="text-xs text-gray-500">Los Angeles, CA</p>
+                            </div>
+                        </div>
+                        <i class="fas fa-ellipsis-h text-gray-400"></i>
+                    </div>
+                    <div class="w-full h-80 bg-gradient-to-br from-green-200 to-blue-300 flex items-center justify-center">
+                        <i class="fas fa-dumbbell text-4xl text-white/70"></i>
+                    </div>
+                    <div class="p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center space-x-4">
+                                <i class="far fa-heart text-xl text-gray-700"></i>
+                                <i class="far fa-comment text-xl text-gray-700"></i>
+                                <i class="far fa-paper-plane text-xl text-gray-700"></i>
+                            </div>
+                            <i class="far fa-bookmark text-xl text-gray-700"></i>
+                        </div>
+                        <p class="font-semibold text-sm text-gray-900 mb-1">2,156 likes</p>
+                        <p class="text-sm text-gray-900">
+                            <span class="font-semibold">anna_fitness</span> 
+                            <span class="text-gray-700">Monday motivation! 💪 Remember, progress over perfection. What's your goal this week?</span>
+                        </p>
+                        <p class="text-xs text-gray-500 mt-2">1 day ago</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- InstaCausality Intro Screen -->
+    <div id="intro" class="screen hidden">
+        <div class="instagram-header text-white text-center py-12">
+            <div class="max-w-md mx-auto px-6">
+                <div class="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <i class="fas fa-chart-line text-3xl text-white"></i>
+                </div>
+                <h1 class="text-3xl font-bold mb-4">InstaCausality</h1>
+                <p class="text-lg opacity-90">Understand why your posts succeed or fail, and get actionable tips to maximize engagement.</p>
+            </div>
+        </div>
+
+        <div class="px-6 py-8 max-w-md mx-auto">
+            <!-- Benefits -->
+            <div class="space-y-6 mb-8">
+                <div class="flex items-center space-x-4 fade-in">
+                    <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                        <i class="fas fa-eye text-white"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-900">See What Works</h3>
+                        <p class="text-gray-600 text-sm">AI analyzes every element of your posts</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4 fade-in" style="animation-delay: 0.2s">
+                    <div class="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center">
+                        <i class="fas fa-lightbulb text-white"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-900">Get Smart Tips</h3>
+                        <p class="text-gray-600 text-sm">Personalized recommendations for growth</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4 fade-in" style="animation-delay: 0.4s">
+                    <div class="w-12 h-12 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
+                        <i class="fas fa-rocket text-white"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-900">Boost Engagement</h3>
+                        <p class="text-gray-600 text-sm">Average 40% increase in performance</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Subscription Plans -->
+            <div class="space-y-4">
+                <h2 class="text-xl font-bold text-center text-gray-900 mb-6">Choose Your Plan</h2>
+                
+                <div class="plan-card p-6" onclick="selectPlan('creator')">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-900">Creator Pro</h3>
+                            <p class="text-xs text-gray-500">Individual Content Creators</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold text-gray-900">$99</div>
+                            <div class="text-sm text-gray-500">/month</div>
+                        </div>
+                    </div>
+                    <ul class="text-sm text-gray-600 space-y-1 mb-3">
+                        <li>• Basic post analytics (likes, comments, views)</li>
+                        <li>• Main success/failure reasons</li>
+                        <li>• Quick engagement tips</li>
+                        <li>• CollabSpot personal profile slot</li>
+                        <li>• Instagram-integrated interface</li>
+                    </ul>
+                    <div class="bg-blue-50 p-2 rounded-lg">
+                        <p class="text-blue-800 text-xs font-medium">Perfect for creators wanting to boost engagement</p>
+                    </div>
+                </div>
+
+                <div class="plan-card featured p-6" onclick="selectPlan('agency')">
+                    <div class="flex items-center justify-between mb-1">
+                        <div class="flex items-center space-x-2">
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-900">Agency</h3>
+                                <p class="text-xs text-gray-500">Small to Medium Agencies</p>
+                            </div>
+                            <span class="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-2 py-1 rounded-full">POPULAR</span>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold text-gray-900">$399</div>
+                            <div class="text-sm text-gray-500">/month</div>
+                        </div>
+                    </div>
+                    <ul class="text-sm text-gray-600 space-y-1 mb-3">
+                        <li>• Analytics for 5-10 client accounts</li>
+                        <li>• Easy account comparison dashboard</li>
+                        <li>• Deeper campaign recommendations</li>
+                        <li>• CollabSpot creator search by field</li>
+                        <li>• Influencer collaboration insights</li>
+                    </ul>
+                    <div class="bg-purple-50 p-2 rounded-lg">
+                        <p class="text-purple-800 text-xs font-medium">Manage all clients efficiently with smart insights</p>
+                    </div>
+                </div>
+
+                <div class="plan-card p-6" onclick="selectPlan('enterprise')">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-900">Enterprise</h3>
+                            <p class="text-xs text-gray-500">Large Companies & Agencies</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold text-gray-900">$599</div>
+                            <div class="text-sm text-gray-500">/month</div>
+                        </div>
+                    </div>
+                    <ul class="text-sm text-gray-600 space-y-1 mb-3">
+                        <li>• Full analytics + ad campaign insights</li>
+                        <li>• ROI predictions & detailed reports</li>
+                        <li>• VIP support & custom interface</li>
+                        <li>• CollabSpot direct campaign launch</li>
+                        <li>• Exportable reports for meetings</li>
+                    </ul>
+                    <div class="bg-green-50 p-2 rounded-lg">
+                        <p class="text-green-800 text-xs font-medium">Maximum ROI with predictive analytics</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="dashboard" class="screen hidden">
+        <div class="instagram-header text-white px-6 py-6">
+            <div class="max-w-md mx-auto">
+                <div class="flex items-center justify-between">
+                    <h1 class="text-2xl font-bold">Your Analytics</h1>
+                    <button onclick="showScreen('notifications')" class="relative">
+                        <i class="fas fa-bell text-xl"></i>
+                        <div class="notification-badge"></div>
+                    </button>
+                </div>
+                <p class="opacity-90 mt-1">Track your Instagram performance</p>
+            </div>
+        </div>
+
+        <div class="px-6 py-6 max-w-md mx-auto">
+            <!-- Quick Stats -->
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="post-card p-4 text-center">
+                    <div class="text-2xl font-bold text-gray-900">847K</div>
+                    <div class="text-sm text-gray-600">Total Engagement</div>
+                    <div class="metric-positive text-sm font-medium">+18%</div>
+                </div>
+                <div class="post-card p-4 text-center">
+                    <div class="text-2xl font-bold text-gray-900">124K</div>
+                    <div class="text-sm text-gray-600">Followers</div>
+                    <div class="metric-positive text-sm font-medium">+12%</div>
+                </div>
+            </div>
+
+            <!-- CollabSpot Feature -->
+            <div class="post-card p-4 mb-6" onclick="showScreen('collabspot')">
+                <div class="flex items-center space-x-3">
+                    <div class="w-12 h-12 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
+                        <i class="fas fa-handshake text-white"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="font-bold text-gray-900">CollabSpot</h3>
+                        <p class="text-gray-600 text-sm">Find creators & collaboration opportunities</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-medium">
+                            12 New
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-400"></i>
+                </div>
+            </div>
+
+            <!-- Posts Feed -->
+            <div class="space-y-4">
+                <h2 class="text-lg font-bold text-gray-900">Recent Posts</h2>
+                
+                <div class="post-card p-4" onclick="showScreen('analysis')">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-16 h-16 bg-gradient-to-r from-pink-400 to-purple-500 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-image text-white text-xl"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-900">Summer Collection Launch</h3>
+                            <p class="text-gray-600 text-sm">2 hours ago</p>
+                            <div class="flex items-center space-x-2 mt-1">
+                                <span class="metric-positive text-sm">+24%</span>
+                                <span class="success-tag">Thumbnail +15%</span>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-right text-gray-400"></i>
+                    </div>
+                </div>
+
+                <div class="post-card p-4" onclick="showScreen('analysis')">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-16 h-16 bg-gradient-to-r from-blue-400 to-cyan-500 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-video text-white text-xl"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-900">Behind the Scenes</h3>
+                            <p class="text-gray-600 text-sm">1 day ago</p>
+                            <div class="flex items-center space-x-2 mt-1">
+                                <span class="metric-negative text-sm">-12%</span>
+                                <span class="failure-tag">Timing -18%</span>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-right text-gray-400"></i>
+                    </div>
+                </div>
+
+                <div class="post-card p-4" onclick="showScreen('analysis')">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-16 h-16 bg-gradient-to-r from-green-400 to-blue-500 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-quote-left text-white text-xl"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-900">Monday Motivation</h3>
+                            <p class="text-gray-600 text-sm">3 days ago</p>
+                            <div class="flex items-center space-x-2 mt-1">
+                                <span class="metric-positive text-sm">+31%</span>
+                                <span class="success-tag">Caption +22%</span>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-right text-gray-400"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Post Analysis Screen -->
+    <div id="analysis" class="screen hidden">
+        <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-16 z-40">
+            <div class="max-w-md mx-auto flex items-center">
+                <button onclick="showScreen('dashboard')" class="mr-4">
+                    <i class="fas fa-arrow-left text-xl text-gray-600"></i>
+                </button>
+                <h1 class="text-lg font-bold text-gray-900">Post Analysis</h1>
+            </div>
+        </div>
+
+        <div class="px-6 py-6 max-w-md mx-auto">
+            <!-- Post Header -->
+            <div class="post-card p-4 mb-6">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-16 h-16 bg-gradient-to-r from-pink-400 to-purple-500 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-image text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-gray-900">Summer Collection Launch</h2>
+                        <p class="text-gray-600 text-sm">Posted 2 hours ago</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                        <div class="text-lg font-bold text-gray-900">12.4K</div>
+                        <div class="text-xs text-gray-600">Likes</div>
+                    </div>
+                    <div>
+                        <div class="text-lg font-bold text-gray-900">847</div>
+                        <div class="text-xs text-gray-600">Comments</div>
+                    </div>
+                    <div>
+                        <div class="text-lg font-bold text-gray-900">234</div>
+                        <div class="text-xs text-gray-600">Shares</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Impact Analysis -->
+            <div class="chart-container mb-6">
+                <h3 class="font-bold text-gray-900 mb-4">What Drove Success</h3>
+                <canvas id="impactChart" width="300" height="200"></canvas>
+            </div>
+
+            <!-- Key Insights -->
+            <div class="space-y-3">
+                <h3 class="font-bold text-gray-900">Key Insights</h3>
+                
+                <div class="insight-card">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-image text-green-600 text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-gray-900">Thumbnail Performance</h4>
+                            <p class="text-gray-600 text-sm">High contrast colors boosted engagement by 24%</p>
+                        </div>
+                        <div class="text-green-600 font-bold">+24%</div>
+                    </div>
+                </div>
+
+                <div class="insight-card">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-align-left text-blue-600 text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-gray-900">Caption Impact</h4>
+                            <p class="text-gray-600 text-sm">Call-to-action increased comments by 18%</p>
+                        </div>
+                        <div class="text-blue-600 font-bold">+18%</div>
+                    </div>
+                </div>
+
+                <div class="insight-card">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-clock text-orange-600 text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-gray-900">Perfect Timing</h4>
+                            <p class="text-gray-600 text-sm">Posted during peak audience activity</p>
+                        </div>
+                        <div class="text-orange-600 font-bold">+12%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendations -->
+            <div class="mt-8">
+                <h3 class="font-bold text-gray-900 mb-4">Recommendations</h3>
+                <div class="post-card p-4">
+                    <div class="flex items-start space-x-3">
+                        <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mt-1">
+                            <i class="fas fa-lightbulb text-purple-600 text-sm"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900 mb-2">For Your Next Post</h4>
+                            <ul class="text-gray-600 text-sm space-y-1">
+                                <li>• Use similar high-contrast thumbnails</li>
+                                <li>• Include clear call-to-action in caption</li>
+                                <li>• Post between 7-9 PM for best reach</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CollabSpot Screen -->
+    <div id="collabspot" class="screen hidden">
+        <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-16 z-40">
+            <div class="max-w-md mx-auto flex items-center">
+                <button onclick="showScreen('dashboard')" class="mr-4">
+                    <i class="fas fa-arrow-left text-xl text-gray-600"></i>
+                </button>
+                <h1 class="text-lg font-bold text-gray-900">CollabSpot</h1>
+            </div>
+        </div>
+
+        <div class="px-6 py-6 max-w-md mx-auto">
+            <!-- Search Filters -->
+            <div class="post-card p-4 mb-6">
+                <h3 class="font-bold text-gray-900 mb-3">Find Creators</h3>
+                <div class="space-y-3">
+                    <div class="flex flex-wrap gap-2">
+                        <button class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">Fashion</button>
+                        <button class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">Tech</button>
+                        <button class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">Fitness</button>
+                        <button class="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium">Food</button>
+                    </div>
+                    <div class="flex space-x-2">
+                        <input type="text" placeholder="Search by skills..." class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        <button class="instagram-button px-4 py-2 text-sm">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Creator Profiles -->
+            <div class="space-y-4">
+                <h3 class="font-bold text-gray-900">Available Creators</h3>
+                
+                <div class="post-card p-4">
+                    <div class="flex items-center space-x-3 mb-3">
+                        <div class="w-12 h-12 bg-gradient-to-r from-pink-400 to-purple-500 rounded-full flex items-center justify-center">
+                            <span class="text-white font-bold">SJ</span>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-bold text-gray-900">Sarah Johnson</h4>
+                            <p class="text-gray-600 text-sm">Fashion & Lifestyle</p>
+                            <div class="flex items-center space-x-2 mt-1">
+                                <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">Fashion</span>
+                                <span class="bg-pink-100 text-pink-800 px-2 py-1 rounded text-xs">Photography</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm font-bold text-gray-900">124K</div>
+                            <div class="text-xs text-gray-500">followers</div>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-3">Specializing in sustainable fashion content and brand collaborations. High engagement rates with millennial audience.</p>
+                    <div class="flex space-x-2">
+                        <button class="flex-1 instagram-button text-sm py-2">
+                            <i class="fas fa-envelope mr-2"></i>Contact
+                        </button>
+                        <button class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="post-card p-4">
+                    <div class="flex items-center space-x-3 mb-3">
+                        <div class="w-12 h-12 bg-gradient-to-r from-blue-400 to-cyan-500 rounded-full flex items-center justify-center">
+                            <span class="text-white font-bold">MR</span>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-bold text-gray-900">Mike Rodriguez</h4>
+                            <p class="text-gray-600 text-sm">Tech & Gaming</p>
+                            <div class="flex items-center space-x-2 mt-1">
+                                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">Tech Reviews</span>
+                                <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">Gaming</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm font-bold text-gray-900">89K</div>
+                            <div class="text-xs text-gray-500">followers</div>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-3">Tech reviewer with focus on mobile devices and gaming accessories. Strong male 18-35 demographic.</p>
+                    <div class="flex space-x-2">
+                        <button class="flex-1 instagram-button text-sm py-2">
+                            <i class="fas fa-envelope mr-2"></i>Contact
+                        </button>
+                        <button class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="post-card p-4">
+                    <div class="flex items-center space-x-3 mb-3">
+                        <div class="w-12 h-12 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+                            <span class="text-white font-bold">AL</span>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-bold text-gray-900">Anna Lee</h4>
+                            <p class="text-gray-600 text-sm">Fitness & Wellness</p>
+                            <div class="flex items-center space-x-2 mt-1">
+                                <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">Fitness</span>
+                                <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">Nutrition</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm font-bold text-gray-900">156K</div>
+                            <div class="text-xs text-gray-500">followers</div>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-3">Certified personal trainer creating workout routines and healthy lifestyle content. Excellent engagement with fitness brands.</p>
+                    <div class="flex space-x-2">
+                        <button class="flex-1 instagram-button text-sm py-2">
+                            <i class="fas fa-envelope mr-2"></i>Contact
+                        </button>
+                        <button class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Your Profile Section -->
+            <div class="mt-8">
+                <h3 class="font-bold text-gray-900 mb-4">Your CollabSpot Profile</h3>
+                <div class="post-card p-4">
+                    <div class="flex items-center space-x-3 mb-3">
+                        <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                            <i class="fas fa-user text-white"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-bold text-gray-900">Your Profile</h4>
+                            <p class="text-gray-600 text-sm">Active until Dec 2024</p>
+                        </div>
+                        <button onclick="showScreen('profile-editor')" class="instagram-button text-sm px-4 py-2">
+                            Edit
+                        </button>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <p class="text-gray-700 text-sm">Complete your profile to appear in CollabSpot searches and attract collaboration opportunities.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Editor Screen -->
+    <div id="profile-editor" class="screen hidden">
+        <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-16 z-40">
+            <div class="max-w-md mx-auto flex items-center">
+                <button onclick="showScreen('collabspot')" class="mr-4">
+                    <i class="fas fa-arrow-left text-xl text-gray-600"></i>
+                </button>
+                <h1 class="text-lg font-bold text-gray-900">Edit Profile</h1>
+                <button onclick="saveProfile()" class="ml-auto instagram-button text-sm px-4 py-2">
+                    Save
+                </button>
+            </div>
+        </div>
+
+        <div class="px-6 py-6 max-w-md mx-auto pb-20">
+            <!-- Profile Photo -->
+            <div class="text-center mb-8">
+                <div class="w-24 h-24 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-user text-3xl text-white"></i>
+                </div>
+                <button class="text-blue-600 font-medium text-sm">Change Photo</button>
+            </div>
+
+            <!-- Form Fields -->
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Display Name</label>
+                    <input type="text" id="displayName" value="Alex Johnson" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Field/Industry</label>
+                    <select id="fieldSelect" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        <option value="">Select your field</option>
+                        <option value="fashion">Fashion & Style</option>
+                        <option value="tech" selected>Technology</option>
+                        <option value="fitness">Fitness & Health</option>
+                        <option value="food">Food & Cooking</option>
+                        <option value="travel">Travel</option>
+                        <option value="beauty">Beauty & Skincare</option>
+                        <option value="lifestyle">Lifestyle</option>
+                        <option value="business">Business</option>
+                        <option value="education">Education</option>
+                        <option value="entertainment">Entertainment</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Skills & Specialties</label>
+                    <div class="space-y-2">
+                        <div class="flex flex-wrap gap-2 mb-3" id="skillTags">
+                            <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm flex items-center">
+                                Product Reviews
+                                <button onclick="removeSkill(this)" class="ml-2 text-blue-600 hover:text-blue-800">
+                                    <i class="fas fa-times text-xs"></i>
+                                </button>
+                            </span>
+                            <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm flex items-center">
+                                Video Content
+                                <button onclick="removeSkill(this)" class="ml-2 text-green-600 hover:text-green-800">
+                                    <i class="fas fa-times text-xs"></i>
+                                </button>
+                            </span>
+                        </div>
+                        <div class="flex space-x-2">
+                            <input type="text" id="skillInput" placeholder="Add a skill..." class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm">
+                            <button onclick="addSkill()" class="instagram-button px-4 py-2 text-sm">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Content Type</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" checked class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                            <span class="text-sm text-gray-700">Photos</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" checked class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                            <span class="text-sm text-gray-700">Videos</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                            <span class="text-sm text-gray-700">Reels</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                            <span class="text-sm text-gray-700">Stories</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Bio</label>
+                    <textarea id="bioText" rows="4" placeholder="Tell others about yourself and what you create..." class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none">Tech enthusiast creating honest product reviews and tutorials. Specializing in mobile devices, gadgets, and emerging technologies. Available for brand partnerships and sponsored content.</textarea>
+                    <p class="text-xs text-gray-500 mt-1">150 characters remaining</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Collaboration Preferences</label>
+                    <div class="space-y-3">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" checked class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                            <span class="text-sm text-gray-700">Brand Partnerships</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" checked class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                            <span class="text-sm text-gray-700">Sponsored Posts</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                            <span class="text-sm text-gray-700">Product Reviews</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                            <span class="text-sm text-gray-700">Event Coverage</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Contact Information</label>
+                    <div class="space-y-3">
+                        <input type="email" placeholder="Business email" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        <input type="url" placeholder="Website (optional)" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                    </div>
+                </div>
+
+                <!-- Visibility Settings -->
+                <div class="post-card p-4">
+                    <h3 class="font-bold text-gray-900 mb-3">Profile Visibility</h3>
+                    <div class="space-y-3">
+                        <label class="flex items-center justify-between cursor-pointer">
+                            <span class="text-sm text-gray-700">Show in CollabSpot searches</span>
+                            <div class="relative">
+                                <input type="checkbox" checked class="sr-only">
+                                <div class="w-10 h-6 bg-purple-600 rounded-full shadow-inner"></div>
+                                <div class="absolute w-4 h-4 bg-white rounded-full shadow top-1 right-1 transition-transform"></div>
+                            </div>
+                        </label>
+                        <label class="flex items-center justify-between cursor-pointer">
+                            <span class="text-sm text-gray-700">Allow direct messages</span>
+                            <div class="relative">
+                                <input type="checkbox" checked class="sr-only">
+                                <div class="w-10 h-6 bg-purple-600 rounded-full shadow-inner"></div>
+                                <div class="absolute w-4 h-4 bg-white rounded-full shadow top-1 right-1 transition-transform"></div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications Screen -->
+    <div id="notifications" class="screen hidden">
+        <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-16 z-40">
+            <div class="max-w-md mx-auto flex items-center">
+                <button onclick="showScreen('dashboard')" class="mr-4">
+                    <i class="fas fa-arrow-left text-xl text-gray-600"></i>
+                </button>
+                <h1 class="text-lg font-bold text-gray-900">Notifications</h1>
+            </div>
+        </div>
+
+        <div class="px-6 py-6 max-w-md mx-auto">
+            <div class="space-y-4">
+                <div class="post-card p-4 border-l-4 border-green-500 slide-in">
+                    <div class="flex items-start space-x-3">
+                        <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-arrow-up text-green-600"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-900">Post Outperforming!</h3>
+                            <p class="text-gray-600 text-sm mb-2">Your latest post is 45% above average</p>
+                            <div class="bg-green-50 p-2 rounded-lg">
+                                <p class="text-green-800 text-xs font-medium">Key: Thumbnail design (+24%)</p>
+                            </div>
+                            <p class="text-gray-500 text-xs mt-2">2 minutes ago</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="post-card p-4 border-l-4 border-red-500 slide-in" style="animation-delay: 0.1s">
+                    <div class="flex items-start space-x-3">
+                        <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-arrow-down text-red-600"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-900">Post Underperforming</h3>
+                            <p class="text-gray-600 text-sm mb-2">Video post is 30% below expected</p>
+                            <div class="bg-red-50 p-2 rounded-lg">
+                                <p class="text-red-800 text-xs font-medium">Issue: Posted outside optimal time</p>
+                            </div>
+                            <p class="text-gray-500 text-xs mt-2">1 hour ago</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="post-card p-4 border-l-4 border-blue-500 slide-in" style="animation-delay: 0.2s">
+                    <div class="flex items-start space-x-3">
+                        <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-lightbulb text-blue-600"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-900">New Insight Available</h3>
+                            <p class="text-gray-600 text-sm mb-2">AI detected a new trend in your audience</p>
+                            <div class="bg-blue-50 p-2 rounded-lg">
+                                <p class="text-blue-800 text-xs font-medium">Tip: Question-based captions +28%</p>
+                            </div>
+                            <p class="text-gray-500 text-xs mt-2">3 hours ago</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentScreen = 'feed';
+
+        function showScreen(screenName) {
+            // Hide all screens
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.add('hidden');
+            });
+            
+            // Show selected screen
+            document.getElementById(screenName).classList.remove('hidden');
+            currentScreen = screenName;
+            
+            // Initialize chart if analysis screen is shown
+            if (screenName === 'analysis') {
+                setTimeout(initChart, 100);
+            }
+            
+            // Hide notification badge when viewing notifications
+            if (screenName === 'notifications') {
+                document.getElementById('insightBadge').style.display = 'none';
+            }
+        }
+
+        function selectPlan(planType) {
+            // Simulate plan selection with smooth transition
+            const button = event.currentTarget;
+            button.style.transform = 'scale(0.95)';
+            
+            setTimeout(() => {
+                button.style.transform = 'scale(1)';
+                showScreen('dashboard');
+            }, 200);
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('impactChart');
+            if (!ctx) return;
+            
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Thumbnail', 'Caption', 'Timing', 'Hashtags'],
+                    datasets: [{
+                        data: [24, 18, 12, 8],
+                        backgroundColor: [
+                            '#10b981',
+                            '#3b82f6', 
+                            '#f59e0b',
+                            '#8b5cf6'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        }
+                    },
+                    cutout: '60%'
+                }
+            });
+        }
+
+        function addSkill() {
+            const input = document.getElementById('skillInput');
+            const skillText = input.value.trim();
+            
+            if (skillText) {
+                const skillTags = document.getElementById('skillTags');
+                const newSkill = document.createElement('span');
+                newSkill.className = 'bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm flex items-center';
+                newSkill.innerHTML = `
+                    ${skillText}
+                    <button onclick="removeSkill(this)" class="ml-2 text-purple-600 hover:text-purple-800">
+                        <i class="fas fa-times text-xs"></i>
+                    </button>
+                `;
+                skillTags.appendChild(newSkill);
+                input.value = '';
+            }
+        }
+
+        function removeSkill(button) {
+            button.parentElement.remove();
+        }
+
+        function saveProfile() {
+            // Simulate saving with visual feedback
+            const saveBtn = event.target;
+            const originalText = saveBtn.textContent;
+            
+            saveBtn.textContent = 'Saving...';
+            saveBtn.disabled = true;
+            
+            setTimeout(() => {
+                saveBtn.textContent = 'Saved!';
+                setTimeout(() => {
+                    saveBtn.textContent = originalText;
+                    saveBtn.disabled = false;
+                    showScreen('collabspot');
+                }, 1000);
+            }, 1500);
+        }
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            // Show notification badge initially
+            setTimeout(() => {
+                document.getElementById('insightBadge').style.display = 'block';
+            }, 2000);
+            
+            // Add touch feedback for mobile
+            document.querySelectorAll('.post-card, .plan-card').forEach(card => {
+                card.addEventListener('touchstart', function() {
+                    this.style.transform = 'scale(0.98)';
+                });
+                
+                card.addEventListener('touchend', function() {
+                    this.style.transform = 'scale(1)';
+                });
+            });
+
+            // Add Enter key support for skill input
+            document.getElementById('skillInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    addSkill();
+                }
+            });
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'978dcecb427c6666',t:'MTc1NjgyNDUwMS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
